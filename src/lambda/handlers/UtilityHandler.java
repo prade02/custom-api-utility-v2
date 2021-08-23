@@ -19,12 +19,21 @@ import lambda.utility.Base64Engine;
 public class UtilityHandler implements RequestStreamHandler {
 
   private final String BASE64 = "base64";
-  private final String ENCODE = "encode";
-  private final String DECODE = "decode";
+  private final String BODY_IS_EMPTY = "BODY IS NULL";
+  private final String RESOURCE_ATTRIBUTE_IS_EMPTY = "RESOURCE ATTRIBUTE IS NULL";
+  private final String MESSAGE_ATTRIBUTE_IS_EMPTY = "MESSAGE ATTRIBUTE IS NULL";
+  private final String ACTION_ATTRIBURE_IS_EMPTY = "ACTION ATTRIBUTE IS NULL";
+  private final String PARSE_EXCEPTION = "PARSE EXCEPTION";
+  private final String EXCEPTION = "EXCEPTION";
+  private final String HANDLER_COMPLETED = "HANDLER COMPLETED";
+
+  private String awsRequestID;
+  private LambdaLogger logger;
 
   @Override
   public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context) throws IOException {
-    LambdaLogger logger = context.getLogger();
+    awsRequestID = context.getAwsRequestId();
+    logger = context.getLogger();
     BufferedReader bufferedReader = null;
     OutputStreamWriter writer = null;
     String handlerResponse = null;
@@ -35,39 +44,24 @@ public class UtilityHandler implements RequestStreamHandler {
 
       if (event.get("body") != null) {
         String sBody = (String) event.get("body");
-        logger.log("Body: " + sBody);
+        this.logMessage("Body: " + sBody);
         JSONObject body = (JSONObject) parser.parse(sBody);
         String resource = (String) body.get("resource");
         String action = (String) body.get("action");
         String message = (String) body.get("message");
-        logger.log("Resource: " + resource + " Action: " + action + " Message: " + message);
-        if (resource != null && action != null) {
-          String response = null;
-          if (resource.equals(BASE64)) {
-            if (action.equals(ENCODE)) {
-              response = (new Base64Engine()).encode(message);
-            } else if (action.equals(DECODE)) {
-              response = (new Base64Engine()).decode(message);
-            }
-            if (response != null) {
-              String out = processOutput(200, response);
-              logger.log("Return: " + out);
-              handlerResponse = out;
-            }
-          }
-        } else {
-          logger.log("resource or action empty");
-          handlerResponse = processOutput(400, "resource or action empty");
-        }
-      } else {
-        logger.log("body empty");
-        handlerResponse = processOutput(400, "body empty");
-      }
+        this.logMessage("Resource: " + resource + " Action: " + action + " Message: " + message);
+        if (resource != null) {
+          if (resource.equals(BASE64))
+            handlerResponse = this.handleBase64Request(message, action);
+        } else
+          handlerResponse = processOutput(400, RESOURCE_ATTRIBUTE_IS_EMPTY);
+      } else
+        handlerResponse = processOutput(400, BODY_IS_EMPTY);
     } catch (ParseException parseException) {
-      logger.log("parse exception " + parseException.getMessage());
+      this.logMessage(PARSE_EXCEPTION);
       handlerResponse = processOutput(503, parseException.getMessage());
     } catch (Exception exception) {
-      logger.log("Exception occured: " + exception.getMessage());
+      this.logMessage(EXCEPTION);
       handlerResponse = processOutput(503, exception.getMessage());
     }
     writer = new OutputStreamWriter(outputStream);
@@ -76,10 +70,26 @@ public class UtilityHandler implements RequestStreamHandler {
       bufferedReader.close();
     if (writer != null)
       writer.close();
-    logger.log("handler completed");
+    this.logMessage(HANDLER_COMPLETED);
+  }
+
+  public String handleBase64Request(String message, String action) {
+    String output = null;
+    if(message == null)
+      output = this.processOutput(400, MESSAGE_ATTRIBUTE_IS_EMPTY);
+    else if(action == null)
+      output = this.processOutput(400, ACTION_ATTRIBURE_IS_EMPTY);
+    else
+      output = this.processOutput(200, (new Base64Engine()).processRequest(message, action));
+    return output;
+  }
+
+  public void logMessage(String message) {
+    this.logger.log(awsRequestID + "^" + message);
   }
 
   public String processOutput(int statusCode, String message) {
+    this.logMessage("StatusCode: " + statusCode + " Message: " + message);
     JSONObject response = new JSONObject();
 
     // set status statusCode
