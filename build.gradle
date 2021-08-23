@@ -1,0 +1,78 @@
+// Define the type of application
+plugins {
+    id 'java'
+    id 'application'
+}
+
+// Define the dependencies central repositories
+repositories {
+  mavenCentral()
+}
+
+// Define the dependencies of the  Java application - the jar is cached in
+//    ~/.gradle/caches/modules-2/files-2.1/
+dependencies {
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.1'
+    implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+}
+
+// Define where the java source file should be from.
+sourceSets {
+    main {
+        java {
+            srcDirs 'src'
+        }
+    }
+}
+
+// Define where to dump the compiled class files.
+sourceSets {
+  main {
+    java.destinationDirectory.set(file('bin'))
+  }
+}
+
+tasks.register("getJavaHome") {
+    doLast {
+        println(System.getProperty("java.home"))
+    }
+}
+
+// Define the entry point of Java application - main method
+mainClassName = 'test.CustomApplication'
+version = '1.0'
+
+// Create JAR fill with application class + dependecies - JAR with all
+task buildFatJar(type: Jar) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    baseName = project.name + '-all'
+    // classifier = 'all'
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+// Create JAR fill with ONLY dependecies
+task buildFatJarWithDependsOnly(type: Jar) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    baseName = project.name + '-dependencies'
+    // classifier = 'all'
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+}
+
+// task to create a zip of dependencies JAR
+// task buildZipForFunction(type: Zip) {
+//     archiveFileName = "function.zip"
+//     destinationDirectory = file("build/distributions")
+//
+//     from "build/libs/sample-gradle-project-1.0.jar"
+// }
+
+// task to create a zip of dependencies JAR
+task buildZipForLayer(type: Zip) {
+    archiveFileName = "layer.zip"
+    destinationDirectory = file("build/distributions")
+
+    from("build/libs/sample-gradle-project-dependencies-1.0.jar") {
+      into "java/lib"
+    }
+}
