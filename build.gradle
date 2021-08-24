@@ -45,7 +45,7 @@ version = '1.0'
 // Create JAR fill with application class + dependecies - JAR with all
 task buildFatJar(type: Jar) {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    baseName = project.name + '-all'
+    archiveBaseName = project.name + '-all'
     // classifier = 'all'
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
@@ -54,7 +54,7 @@ task buildFatJar(type: Jar) {
 // Create JAR fill with ONLY dependecies
 task buildFatJarWithDependsOnly(type: Jar) {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    baseName = project.name + '-dependencies'
+    archiveBaseName = project.name + '-dependencies'
     // classifier = 'all'
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
 }
@@ -64,7 +64,7 @@ task buildFatJarWithDependsOnly(type: Jar) {
 //     archiveFileName = "function.zip"
 //     destinationDirectory = file("build/distributions")
 //
-//     from "build/libs/sample-gradle-project-1.0.jar"
+//     from "build/libs/custom-api-utility-v2-1.0.jar"
 // }
 
 // task to create a zip of dependencies JAR
@@ -72,7 +72,15 @@ task buildZipForLayer(type: Zip) {
     archiveFileName = "layer.zip"
     destinationDirectory = file("build/distributions")
 
-    from("build/libs/sample-gradle-project-dependencies-1.0.jar") {
+    from("build/libs/custom-api-utility-v2-dependencies-1.0.jar") {
       into "java/lib"
     }
+}
+
+// runs build to create main jar, and create dependencies jar and layer zip
+task buildAll {
+  dependsOn 'build'
+  dependsOn "buildFatJarWithDependsOnly"
+  dependsOn "buildZipForLayer"
+  tasks.findByName("buildZipForLayer").mustRunAfter "buildFatJarWithDependsOnly"
 }
