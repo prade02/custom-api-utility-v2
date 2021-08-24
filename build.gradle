@@ -39,7 +39,7 @@ tasks.register("getJavaHome") {
 }
 
 // Define the entry point of Java application - main method
-mainClassName = 'test.CustomApplication'
+mainClassName = 'invoker.CustomApplication'
 version = '1.0'
 
 // Create JAR fill with application class + dependecies - JAR with all
