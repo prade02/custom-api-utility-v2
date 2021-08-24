@@ -73,7 +73,7 @@ public class UtilityHandler implements RequestStreamHandler {
     this.logMessage(HANDLER_COMPLETED);
   }
 
-  public String handleBase64Request(String message, String action) {
+  private String handleBase64Request(String message, String action) {
     String output = null;
     if(message == null)
       output = this.processOutput(400, MESSAGE_ATTRIBUTE_IS_EMPTY);
@@ -84,11 +84,11 @@ public class UtilityHandler implements RequestStreamHandler {
     return output;
   }
 
-  public void logMessage(String message) {
+  private void logMessage(String message) {
     this.logger.log(awsRequestID + "^" + message);
   }
 
-  public String processOutput(int statusCode, String message) {
+  private String processOutput(int statusCode, String message) {
     this.logMessage("StatusCode: " + statusCode + " Message: " + message);
     JSONObject response = new JSONObject();
 
