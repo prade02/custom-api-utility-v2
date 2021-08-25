@@ -13,7 +13,7 @@ repositories {
 //    ~/.gradle/caches/modules-2/files-2.1/
 dependencies {
     implementation 'com.amazonaws:aws-lambda-java-core:1.2.1'
-    implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+    implementation 'com.google.code.gson:gson:2.8.8'
 }
 
 // Define where the java source file should be from.

@@ -3,9 +3,10 @@ package lambda.handlers;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.JsonIOException;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -23,7 +24,8 @@ public class UtilityHandler implements RequestStreamHandler {
   private final String RESOURCE_ATTRIBUTE_IS_EMPTY = "RESOURCE ATTRIBUTE IS NULL";
   private final String MESSAGE_ATTRIBUTE_IS_EMPTY = "MESSAGE ATTRIBUTE IS NULL";
   private final String ACTION_ATTRIBURE_IS_EMPTY = "ACTION ATTRIBUTE IS NULL";
-  private final String PARSE_EXCEPTION = "PARSE EXCEPTION";
+  private final String JSON_IO_EXCEPTION = "JSON IO EXCEPTION";
+  private final String JSON_SYNTAX_EXCEPTION = "JSON SYNTAX EXCEPTION";
   private final String EXCEPTION = "EXCEPTION";
   private final String HANDLER_COMPLETED = "HANDLER COMPLETED";
 
@@ -38,17 +40,14 @@ public class UtilityHandler implements RequestStreamHandler {
     OutputStreamWriter writer = null;
     String handlerResponse = null;
     try {
-      JSONParser parser = new JSONParser();
       bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-      JSONObject event = (JSONObject) parser.parse(bufferedReader);
-
-      if (event.get("body") != null) {
-        String sBody = (String) event.get("body");
-        this.logMessage("Body: " + sBody);
-        JSONObject body = (JSONObject) parser.parse(sBody);
-        String resource = (String) body.get("resource");
-        String action = (String) body.get("action");
-        String message = (String) body.get("message");
+      JsonObject event = JsonParser.parseReader(bufferedReader).getAsJsonObject();
+      String sbody = event.getAsJsonPrimitive("body").getAsString();
+      if (sbody != null) {
+        JsonObject body = JsonParser.parseString(sbody).getAsJsonObject();
+        String resource = body.getAsJsonPrimitive("resource").getAsString();
+        String action =  body.getAsJsonPrimitive("action").getAsString();
+        String message =  body.getAsJsonPrimitive("message").getAsString();
         this.logMessage("Resource: " + resource + " Action: " + action + " Message: " + message);
         if (resource != null) {
           if (resource.equals(BASE64))
@@ -57,9 +56,12 @@ public class UtilityHandler implements RequestStreamHandler {
           handlerResponse = processOutput(400, RESOURCE_ATTRIBUTE_IS_EMPTY);
       } else
         handlerResponse = processOutput(400, BODY_IS_EMPTY);
-    } catch (ParseException parseException) {
-      this.logMessage(PARSE_EXCEPTION);
-      handlerResponse = processOutput(503, parseException.getMessage());
+    } catch (JsonIOException jsonIOException) {
+      this.logMessage(JSON_IO_EXCEPTION);
+      handlerResponse = processOutput(503, jsonIOException.getMessage());
+    } catch (JsonSyntaxException jsonSyntaxException) {
+      this.logMessage(JSON_SYNTAX_EXCEPTION);
+      handlerResponse = processOutput(503, jsonSyntaxException.getMessage());
     } catch (Exception exception) {
       this.logMessage(EXCEPTION);
       handlerResponse = processOutput(503, exception.getMessage());
@@ -90,22 +92,28 @@ public class UtilityHandler implements RequestStreamHandler {
 
   private String processOutput(int statusCode, String message) {
     this.logMessage("StatusCode: " + statusCode + " Message: " + message);
-    JSONObject response = new JSONObject();
-
+    JsonObject response = new JsonObject();
+    /*
+    {
+      "statusCode": int,
+      "headers": {},
+      "body": String
+    }
+    */
     // set status statusCode
-    response.put("statusCode", statusCode);
+    response.addProperty("statusCode", statusCode);
 
     // set headers
-    JSONObject headers = new JSONObject();
-    headers.put("Access-Control-Allow-Headers", "Content-Type");
-    headers.put("Access-Control-Allow-Origin", "*");
-    headers.put("Access-Control-Allow-Methods", "GET");
-    response.put("headers", headers);
+    JsonObject headers = new JsonObject();
+    headers.addProperty("Access-Control-Allow-Headers", "Content-Type");
+    headers.addProperty("Access-Control-Allow-Origin", "*");
+    headers.addProperty("Access-Control-Allow-Methods", "GET");
+    response.add("headers", headers);
 
     // set body
-    JSONObject jsonBody = new JSONObject();
-    jsonBody.put("result", message);
-    response.put("body", jsonBody.toString());
+    JsonObject jsonBody = new JsonObject();
+    jsonBody.addProperty("result", message);
+    response.addProperty("body", jsonBody.toString());
 
     return response.toString();
   }
